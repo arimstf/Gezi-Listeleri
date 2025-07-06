@@ -3,14 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ankara Gezisi Katılımcı Listesi</title>
+  <title>Yükleniyor...</title>
   <style>
-    body {
+
+    html, body {
+      height: 100%; /* HTML ve Body'nin tarayıcı yüksekliğini tam kaplamasını sağlar */
+      margin: 0;
+      padding: 0;
+    }
+       body {
       font-family: 'Segoe UI', sans-serif;
       background: #f4f6f9;
-      margin: 0;
-      padding: 1rem;
+      /* body'nin kendi padding'ini burada bırakıyoruz, çünkü genel sayfa içeriği için */
+      padding: 1rem; 
       color: #333;
+      /* Sticky Footer için eklemeler */
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh; /* Ekran yüksekliğinin en az %100'ü kadar olmasını sağlar */
+      box-sizing: border-box; /* Padding'in toplam yüksekliğe dahil olmasını sağlar */
     }
 
     h1 {
@@ -58,7 +69,36 @@
       text-align: center;
     }
 
-    @media (max-width: 600px) {
+    /* Logo Stili */
+    #logolar {
+      display: block; /* Resmi blok element yap */
+      margin: 0 auto 2rem auto; /* Yatayda ortala ve altında boşluk bırak */
+      max-width: 400px; /* Maksimum genişlik, ihtiyaca göre ayarlayın */
+      height: auto; /* Oranını koru */
+    }
+    
+    /* Footer Stili */
+    footer {
+      margin-top: auto; /* İçeriği aşağı iterek footer'ı en alta sabitle */
+      padding: 10px; /* İç boşluk */
+      text-align: center; /* Yazıyı ortala */
+      background-color: #34495e; /* Koyu bir arka plan */
+      color: #ecf0f1; /* Açık renk yazı */
+      font-size: 14px; /* Yazı boyutu */
+      border-top: 1px solid #2c3e50; /* Üst kenarlık */
+    }
+
+    footer p {
+      margin: 0; /* Paragrafın varsayılan marginini sıfırla */
+    }
+
+    /* Mobil medya sorguları düzeltildi ve güncellendi */
+    @media (max-width: 500px) { /* Önceki 500px kuralı */
+      #logolar {
+        max-width: 300px; /* Maksimum genişlik, ihtiyaca göre ayarlayın */
+      }
+    
+    @media (max-width: 200px) {
       table, thead, tbody, th, td, tr {
         display: block;
       }
@@ -87,7 +127,7 @@
   </style>
 </head>
 <body>
-
+  <img id="logolar" src="logolar.png">
   <h1 id="mainTitle"></h1>
   <table>
     <thead>
@@ -105,22 +145,28 @@
   <div id="explanationArea">
     </div>
 
+  <footer>
+    <p id="footerText">Bu tablo resmi bir belge niteliği taşımaz. Sadece bilgilendirme amaçlıdır.</p>
+  </footer>
+
   <script>
-    // Varsayılan ayarlar (eğer localStorage'da bir şey bulunamazsa)
+    // Varsayılan ayarlar, logo URL'si ve anlamlı varsayılanlar eklendi
     const defaultSettings = {
-        sheetyLink: "https://api.sheety.co/0ba8ac5c826c01778820b2e0aabcff98/ankaraGezisiKayıtFormu/ankaraGezisiKayıtFormu",
-        pageTitle: "🚌 Ankara Gezisi Katılımcı Listesi",
-        asilCount: 20,
-        totalParticipantsToShow: 30,
-        explanation: "Bu liste, Ankara gezisi için yapılan başvurular arasından belirlenen asil ve yedek katılımcıları göstermektedir. Asil listedeki katılımcıların geziye katılımı kesinleşmiştir. Yedek listedeki katılımcılar, asil listeden boş yer kalması durumunda sırayla davet edilecektir."
+        sheetyLink: "", // Burayı kendi Sheety linkinizle değiştirin
+        pageTitle: "",
+        asilCount: 20, // Varsayılan asil katılımcı sayısı
+        totalParticipantsToShow: 30, // Varsayılan toplam gösterilecek katılımcı
+        explanation: "",
+        logoUrl: "logolar.png" // Varsayılan logo adresi (lütfen kendi logonuzun dosya adıyla değiştirin)
     };
 
-    // localStorage'dan ayarları yükle, yoksa varsayılanı kullan
     let settings = {};
     try {
         const storedSettings = localStorage.getItem('listPageSettings');
         if (storedSettings) {
             settings = JSON.parse(storedSettings);
+            // localStorage'dan yüklenen ayarlarda eksiklik varsa defaultSettings'ten tamamla
+            settings = { ...defaultSettings, ...settings };
         } else {
             settings = defaultSettings;
         }
@@ -130,23 +176,34 @@
     }
 
     // HTML elementlerini güncelle
+    document.title = settings.pageTitle;
     document.getElementById("mainTitle").textContent = settings.pageTitle;
     document.getElementById("explanationArea").innerHTML = settings.explanation;
+    document.getElementById("logolar").src = settings.logoUrl; // Logo URL'si ayarlandı
+
+
 
     // Listeyi çek ve doldur
     fetch(settings.sheetyLink)
       .then(response => {
           if (!response.ok) {
-              throw new Error(`HTTP error! Status: ${response.status} - Linki kontrol edin.`);
+              throw new Error(`HTTP error! Status: ${response.status} - Lütfen Sheety API linkinizi kontrol edin.`);
           }
           return response.json();
       })
       .then(data => {
-        const sheetName = Object.keys(data)[0];
+        console.log("Sheety API Yanıtı:", data);
+
+        const sheetNames = Object.keys(data);
+        if (sheetNames.length === 0) {
+            throw new Error("API yanıtında beklenen sayfa verisi bulunamadı (yanıt boş veya hatalı).");
+        }
+        const sheetName = sheetNames[0]; // JSON'daki ilk anahtar sayfa adı olmalı.
+
         const liste = data[sheetName];
 
         if (!Array.isArray(liste)) {
-            throw new Error("API yanıtı beklenen liste formatında değil.");
+            throw new Error(`API yanıtında '${sheetName}' anahtarı altında liste (Array) bulunamadı. Lütfen Sheety yanıt yapısını kontrol edin.`);
         }
 
         const tbody = document.getElementById("katilimciListesi");
@@ -163,14 +220,14 @@
             durumMetni = "Asil";
             durumClass = "asil";
           } else {
-            durumMetni = "Yedek";
+            // Yedekler için sıra numarası eklendi
+            durumMetni = `${index - settings.asilCount + 1}.Yedek `;
             durumClass = "yedek";
           }
 
           tr.className = durumClass;
 
-          const kisiAdiAnahtari = Object.keys(kisi).find(key => typeof kisi[key] === 'string' && kisi[key].length > 0) || Object.keys(kisi)[0];
-          const kisiAdi = kisi[kisiAdiAnahtari] || '-';
+          let kisiAdi = kisi['adSoyad:'] || '-';
 
           tr.innerHTML = `
             <td data-label="#">${index + 1}</td>
@@ -182,7 +239,7 @@
       })
       .catch(error => {
         document.getElementById("katilimciListesi").innerHTML =
-          `<tr><td colspan='3'>Veri yüklenirken hata oluştu: ${error.message}</td></tr>`;
+          `<tr><td colspan='3'>Veri yüklenirken hata oluştu: ${error.message}. <br>Lütfen Sheety API linkinizi, Sheety'deki sayfa adını ve kolon adlarını kontrol edin. Konsola bakın.</td></tr>`;
         document.getElementById("mainTitle").textContent = "Hata Oluştu!";
         document.getElementById("explanationArea").innerHTML = `<p>Katılımcı verileri yüklenemedi. Detay: ${error.message}</p>`;
         console.error("Hata:", error);
