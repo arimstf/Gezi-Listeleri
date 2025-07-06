@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Yönetim Paneli</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 1rem;
+      color: #333;
+    }
+
+    .panel-container {
+      max-width: 700px;
+      margin: 2rem auto;
+      background: #ffffff;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+      /* Paneli varsayılan olarak gizli tutarız */
+      display: none; /* Bu satırı kaldırarak paneli admin.html açıldığında hep görünür yapabilirsiniz. */
+    }
+
+    .panel-container h2 {
+        margin-top: 0;
+        color: #333;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 0.8rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .panel-container label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: bold;
+      color: #555;
+    }
+
+    .panel-container input[type="text"],
+    .panel-container input[type="url"],
+    .panel-container input[type="number"],
+    .panel-container textarea {
+      width: calc(100% - 20px);
+      padding: 10px;
+      margin-bottom: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+
+    .panel-container textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .panel-container button {
+      background-color: #28a745; /* Sadece kaydet butonu olduğu için direkt yeşil */
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color 0.2s ease;
+      float: right; /* Sağa hizala */
+    }
+
+    .panel-container button:hover {
+      background-color: #218838;
+    }
+
+    .panel-container::after { /* Float temizleme */
+      content: "";
+      display: table;
+      clear: both;
+    }
+
+    #message {
+        display: none; /* SweetAlert kullanıldığı için bu divi gizli tutuyoruz */
+    }
+  </style>
+</head>
+<body>
+
+  <div class="panel-container" id="adminPanel">
+    <h2>Ayarları Yönet</h2>
+    <div>
+      <label for="panelSheetyLink">Sheety API Linki:</label>
+      <input type="url" id="panelSheetyLink" placeholder="Sheety API linkini girin (örn: https://api.sheety.co/...)">
+    </div>
+    <div>
+      <label for="panelPageTitle">Sayfa Başlığı:</label>
+      <input type="text" id="panelPageTitle" placeholder="Sayfa başlığını girin">
+    </div>
+    <div>
+      <label for="panelAsilCount">Asil Kişi Sayısı:</label>
+      <input type="number" id="panelAsilCount" value="20" min="0">
+    </div>
+    <div>
+      <label for="panelTotalParticipants">Gösterilecek Toplam Kişi Sayısı:</label>
+      <input type="number" id="panelTotalParticipants" value="30" min="0">
+    </div>
+    <div>
+      <label for="panelExplanation">Açıklama Metni:</label>
+      <textarea id="panelExplanation" placeholder="Açıklama metnini buraya girin"></textarea>
+    </div>
+    <button id="saveSettings" class="save-button">Ayarları Kaydet</button>
+    <div id="message"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <script>
+    // Panel elementlerini al
+    const adminPanel = document.getElementById("adminPanel");
+    const panelSheetyLink = document.getElementById("panelSheetyLink");
+    const panelPageTitle = document.getElementById("panelPageTitle");
+    const panelAsilCount = document.getElementById("panelAsilCount");
+    const panelTotalParticipants = document.getElementById("panelTotalParticipants");
+    const panelExplanation = document.getElementById("panelExplanation");
+    const saveSettingsButton = document.getElementById("saveSettings");
+
+    // Varsayılan ayarlar
+    const defaultSettings = {
+        sheetyLink: "https://api.sheety.co/0ba8ac5c826c01778820b2e0aabcff98/ankaraGezisiKayıtFormu/ankaraGezisiKayıtFormu",
+        pageTitle: "🚌 Ankara Gezisi Katılımcı Listesi",
+        asilCount: 20,
+        totalParticipantsToShow: 30,
+        explanation: "Bu liste, Ankara gezisi için yapılan başvurular arasından belirlenen asil ve yedek katılımcıları göstermektedir. Asil listedeki katılımcıların geziye katılımı kesinleşmiştir. Yedek listedeki katılımcılar, asil listeden boş yer kalması durumunda sırayla davet edilecektir."
+    };
+
+    // localStorage'dan mevcut ayarları yükle ve panele yansıt
+    function loadSettingsIntoPanel() {
+        let settings = {};
+        try {
+            const storedSettings = localStorage.getItem('listPageSettings');
+            if (storedSettings) {
+                settings = JSON.parse(storedSettings);
+            } else {
+                settings = defaultSettings;
+            }
+        } catch (e) {
+            console.error("localStorage'dan ayarlar yüklenirken hata oluştu, varsayılanlar kullanılacak.", e);
+            settings = defaultSettings;
+        }
+
+        panelSheetyLink.value = settings.sheetyLink;
+        panelPageTitle.value = settings.pageTitle;
+        panelAsilCount.value = settings.asilCount;
+        panelTotalParticipants.value = settings.totalParticipantsToShow;
+        panelExplanation.value = settings.explanation;
+    }
+
+    // Ayarları localStorage'a kaydet
+    function saveSettings() {
+        const settingsToSave = {
+            sheetyLink: panelSheetyLink.value,
+            pageTitle: panelPageTitle.value,
+            asilCount: parseInt(panelAsilCount.value) || 0,
+            totalParticipantsToShow: parseInt(panelTotalParticipants.value) || 0,
+            explanation: panelExplanation.value
+        };
+
+        try {
+            localStorage.setItem('listPageSettings', JSON.stringify(settingsToSave));
+            Swal.fire({
+                position: "center",
+                icon: "success",
+                title: "Ayarlar başarıyla kaydedildi!",
+                html: "Listeleme sayfasını yenileyerek değişiklikleri görebilirsiniz.",
+                showConfirmButton: false,
+                timer: 1500,
+            });
+        } catch (e) {
+            Swal.fire({
+                position: "center",
+                icon: "error",
+                title: "Hata!",
+                text: "Ayarlar kaydedilirken bir sorun oluştu. Konsolu kontrol edin.",
+                showConfirmButton: true,
+            });
+            console.error("Ayarlar localStorage'a kaydedilirken hata oluştu:", e);
+        }
+    }
+
+    // "Ayarları Kaydet" butonuna tıklanınca kaydet
+    saveSettingsButton.addEventListener("click", saveSettings);
+
+    // Sayfa yüklendiğinde ayarları panele yükle
+    loadSettingsIntoPanel();
+
+    // Paneli başlangıçta gizle (eğer bu satırı kaldırırsanız, admin.html açıldığında panel direkt görünür.)
+    adminPanel.style.display = "block"; // <-- Panelin admin.html'de varsayılan olarak görünür olmasını istiyorsanız 'block' yapın.
+                                         // Gizli olmasını istiyorsanız 'none' yapın veya bu satırı kaldırın ve CSS'teki 'display: none;' kalsın.
+  </script>
+
+</body>
+</html>

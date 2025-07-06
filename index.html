@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ankara Gezisi Katılımcı Listesi</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f9;
+      margin: 0;
+      padding: 1rem;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1.5rem;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+
+    th, td {
+      padding: 0.8rem;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background-color: #2c3e50;
+      color: white;
+    }
+
+    .asil {
+      background-color: #d4edda;
+      color: #155724;
+      font-weight: bold;
+    }
+
+    .yedek {
+      background-color: #fff3cd;
+      color: #856404;
+      font-weight: bold;
+    }
+
+    #explanationArea {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: #e9ecef;
+      border-radius: 5px;
+      color: #495057;
+      text-align: center;
+    }
+
+    @media (max-width: 600px) {
+      table, thead, tbody, th, td, tr {
+        display: block;
+      }
+
+      tr {
+        margin-bottom: 1rem;
+      }
+
+      th {
+        display: none;
+      }
+
+      td {
+        padding: 0.5rem;
+        border: none;
+        position: relative;
+      }
+
+      td::before {
+        content: attr(data-label);
+        font-weight: bold;
+        display: block;
+        margin-bottom: 0.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1 id="mainTitle"></h1>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Ad Soyad</th>
+        <th>Durum</th>
+      </tr>
+    </thead>
+    <tbody id="katilimciListesi">
+      <tr><td colspan="3">Yükleniyor...</td></tr>
+    </tbody>
+  </table>
+
+  <div id="explanationArea">
+    </div>
+
+  <script>
+    // Varsayılan ayarlar (eğer localStorage'da bir şey bulunamazsa)
+    const defaultSettings = {
+        sheetyLink: "https://api.sheety.co/0ba8ac5c826c01778820b2e0aabcff98/ankaraGezisiKayıtFormu/ankaraGezisiKayıtFormu",
+        pageTitle: "🚌 Ankara Gezisi Katılımcı Listesi",
+        asilCount: 20,
+        totalParticipantsToShow: 30,
+        explanation: "Bu liste, Ankara gezisi için yapılan başvurular arasından belirlenen asil ve yedek katılımcıları göstermektedir. Asil listedeki katılımcıların geziye katılımı kesinleşmiştir. Yedek listedeki katılımcılar, asil listeden boş yer kalması durumunda sırayla davet edilecektir."
+    };
+
+    // localStorage'dan ayarları yükle, yoksa varsayılanı kullan
+    let settings = {};
+    try {
+        const storedSettings = localStorage.getItem('listPageSettings');
+        if (storedSettings) {
+            settings = JSON.parse(storedSettings);
+        } else {
+            settings = defaultSettings;
+        }
+    } catch (e) {
+        console.error("localStorage'dan ayarlar yüklenirken hata oluştu, varsayılanlar kullanılacak.", e);
+        settings = defaultSettings;
+    }
+
+    // HTML elementlerini güncelle
+    document.getElementById("mainTitle").textContent = settings.pageTitle;
+    document.getElementById("explanationArea").innerHTML = settings.explanation;
+
+    // Listeyi çek ve doldur
+    fetch(settings.sheetyLink)
+      .then(response => {
+          if (!response.ok) {
+              throw new Error(`HTTP error! Status: ${response.status} - Linki kontrol edin.`);
+          }
+          return response.json();
+      })
+      .then(data => {
+        const sheetName = Object.keys(data)[0];
+        const liste = data[sheetName];
+
+        if (!Array.isArray(liste)) {
+            throw new Error("API yanıtı beklenen liste formatında değil.");
+        }
+
+        const tbody = document.getElementById("katilimciListesi");
+        tbody.innerHTML = ''; // Listeyi temizle
+
+        liste.forEach((kisi, index) => {
+          if (index >= settings.totalParticipantsToShow) return;
+
+          const tr = document.createElement("tr");
+          let durumMetni = "";
+          let durumClass = "";
+
+          if (index < settings.asilCount) {
+            durumMetni = "Asil";
+            durumClass = "asil";
+          } else {
+            durumMetni = "Yedek";
+            durumClass = "yedek";
+          }
+
+          tr.className = durumClass;
+
+          const kisiAdiAnahtari = Object.keys(kisi).find(key => typeof kisi[key] === 'string' && kisi[key].length > 0) || Object.keys(kisi)[0];
+          const kisiAdi = kisi[kisiAdiAnahtari] || '-';
+
+          tr.innerHTML = `
+            <td data-label="#">${index + 1}</td>
+            <td data-label="Ad Soyad">${kisiAdi}</td>
+            <td data-label="Durum">${durumMetni}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      })
+      .catch(error => {
+        document.getElementById("katilimciListesi").innerHTML =
+          `<tr><td colspan='3'>Veri yüklenirken hata oluştu: ${error.message}</td></tr>`;
+        document.getElementById("mainTitle").textContent = "Hata Oluştu!";
+        document.getElementById("explanationArea").innerHTML = `<p>Katılımcı verileri yüklenemedi. Detay: ${error.message}</p>`;
+        console.error("Hata:", error);
+      });
+  </script>
+
+</body>
+</html>
